@@ -1,0 +1,596 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Cute Cow Farm</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #e8f8df;
+            text-align: center;
+        }
+
+        h1 {
+            color: #397b35;
+            margin: 20px 0 10px;
+        }
+
+        .hint {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 18px;
+            background: #fff4b8;
+            color: #397b35;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        .farm-container {
+            position: relative;
+            width: 95%;
+            max-width: 1100px;
+            margin: 15px auto;
+            border: 5px solid #8bcf76;
+            border-radius: 20px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .farm-scene {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        /* Clickable fodder trough */
+        .fodder-area {
+            position: absolute;
+            left: 55%;
+            top: 58%;
+            width: 30%;
+            height: 28%;
+            border: 3px solid transparent;
+            border-radius: 20px;
+            background: transparent;
+            cursor: pointer;
+            z-index: 3;
+        }
+
+        .fodder-area:hover {
+            border-color: #f5c542;
+        }
+
+        /* Activity buttons */
+        .farm-action {
+            position: absolute;
+            z-index: 5;
+            width: clamp(38px, 5vw, 55px);
+            height: clamp(38px, 5vw, 55px);
+            border: 2px solid white;
+            border-radius: 50%;
+            background: #fff4b8;
+            font-size: clamp(20px, 3vw, 28px);
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+
+        .farm-action:hover {
+            transform: scale(1.12);
+        }
+
+        .farm-action:disabled,
+        .fodder-area:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .water-action {
+            left: 86%;
+            top: 72%;
+            transition: left 1s ease, top 1s ease;
+        }
+
+        .water-action.moving {
+            left: 48%;
+            top: 60%;
+        }
+
+        .bath-action {
+            left: 89%;
+            top: 52%;
+        }
+
+        .medicine-action {
+            left: 75%;
+            top: 83%;
+        }
+
+        .brush-action {
+            left: 66%;
+            top: 90%;
+        }
+
+        /* Messages */
+        #activityMessage {
+            display: none;
+            position: absolute;
+            top: 7%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 12;
+            padding: 12px 20px;
+            border-radius: 20px;
+            background: #fff4b8;
+            color: #397b35;
+            font-size: clamp(14px, 2vw, 22px);
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .eating-status {
+            display: none;
+            margin: 10px;
+            color: #397b35;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        /* Water splashes */
+        #waterEffect {
+            display: none;
+            position: absolute;
+            left: 57%;
+            top: 22%;
+            z-index: 8;
+            font-size: 45px;
+            pointer-events: none;
+        }
+
+        .water-animation {
+            display: block !important;
+            animation: waterFall 0.7s infinite alternate;
+        }
+
+        @keyframes waterFall {
+            from { transform: translateY(-5px); opacity: 0.5; }
+            to { transform: translateY(20px); opacity: 1; }
+        }
+
+        /* Soap foam */
+        #soapEffect {
+            display: none;
+            position: absolute;
+            left: 57%;
+            top: 43%;
+            z-index: 9;
+            font-size: 42px;
+            pointer-events: none;
+        }
+
+        .foam-animation {
+            display: block !important;
+            animation: foam 0.8s infinite alternate;
+        }
+
+        @keyframes foam {
+            from { transform: scale(0.8); opacity: 0.6; }
+            to { transform: scale(1.2); opacity: 1; }
+        }
+
+        /* Moving injection */
+        #injectionAnimation {
+            display: none;
+            position: absolute;
+            left: 75%;
+            top: 78%;
+            z-index: 10;
+            font-size: 45px;
+            pointer-events: none;
+        }
+
+        .injection-moving {
+            display: block !important;
+            animation: injectionMove 1.3s ease-in-out forwards;
+        }
+
+        @keyframes injectionMove {
+            0% {
+                transform: translate(0, 0) rotate(-35deg);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            75% {
+                transform: translate(-150px, -180px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-150px, -180px) scale(0.8);
+                opacity: 0;
+            }
+        }
+
+        /* Moving brush */
+        #brushAnimation {
+            display: none;
+            position: absolute;
+            left: 68%;
+            top: 43%;
+            z-index: 10;
+            font-size: 45px;
+            pointer-events: none;
+        }
+
+        .brush-moving {
+            display: block !important;
+            animation: brushMove 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes brushMove {
+            from { transform: translateX(-25px) rotate(-15deg); }
+            to { transform: translateX(35px) rotate(15deg); }
+        }
+
+        .home-button {
+            display: inline-block;
+            margin: 15px;
+            padding: 12px 25px;
+            background: #55a84f;
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 18px;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 22px; }
+            .hint { font-size: 14px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🐮 My Cute Cow Farm 🌳</h1>
+
+    <div class="hint">
+        🌿 Click the farm objects to take care of your cow!
+    </div>
+
+    <div class="farm-container">
+
+        <!-- Cow image -->
+       <img
+    id="cowImage"
+    class="farm-scene"
+    src="{{ url_for('static', filename='images/indian_cow.png') }}"
+    data-standing="{{ url_for('static', filename='images/indian_cow.png') }}"
+    data-eating="{{ url_for('static', filename='images/indian_cow_eating.png') }}"
+    data-drinking="{{ url_for('static', filename='images/indian_cow_drinking.png') }}"
+    data-bath="{{ url_for('static', filename='images/indian_cow_bath.png') }}"
+    data-brush="{{ url_for('static', filename='images/indian_cow_brush.png') }}"
+    data-medicine="{{ url_for('static', filename='images/indian_cow_medicine.png') }}"
+    alt="My Cute Cow Farm"
+>
+
+        <!-- Feeding -->
+        <button
+            class="fodder-area"
+            id="fodderButton"
+            onclick="feedCow()"
+            aria-label="Feed the cow"
+            title="Click the fodder to feed the cow">
+        </button>
+
+        <!-- Water -->
+        <button
+            class="farm-action water-action"
+            id="waterBucket"
+            onclick="giveWater()"
+            title="Give water">
+            🪣
+        </button>
+
+        <!-- Bath -->
+        <button
+            class="farm-action bath-action"
+            onclick="giveBath()"
+            title="Give a bath">
+            🚿
+        </button>
+
+        <!-- Medicine -->
+        <button
+            class="farm-action medicine-action"
+            onclick="giveMedicine()"
+            title="Pretend veterinary care">
+            💉
+        </button>
+
+        <!-- Brush -->
+        <button
+            class="farm-action brush-action"
+            onclick="brushCow()"
+            title="Brush the cow">
+            🪮
+        </button>
+
+        <!-- Activity messages and effects: each ID appears only once -->
+        <div id="activityMessage"></div>
+        <div id="waterEffect">💦💦💦</div>
+        <div id="soapEffect">🫧🫧🫧</div>
+        <div id="injectionAnimation">💉</div>
+        <div id="brushAnimation">🪮</div>
+
+    </div>
+
+    <div class="eating-status" id="eatingStatus">
+        😋 The cow is enjoying her food!
+    </div>
+
+    <!-- Sounds -->
+    <audio
+        id="cowSound"
+        src="{{ url_for('static', filename='sounds/cow_moo.mp3') }}"
+        preload="auto">
+    </audio>
+
+    <audio
+        id="drinkingSound"
+        src="{{ url_for('static', filename='sounds/cow_drinking.mp3') }}"
+        preload="auto"
+        loop>
+    </audio>
+    
+    <audio id="bathSound"
+       src="{{ url_for('static', filename='sounds/cow_bath.mp3') }}"
+       preload="auto" loop>
+</audio>
+
+<audio id="brushingSound"
+       src="{{ url_for('static', filename='sounds/cow_brushing.mp3') }}"
+       preload="auto" loop>
+</audio>
+    <a href="/" class="home-button">🏠 Home</a>
+
+    <script>
+
+        // One activity at a time
+        let activityRunning = false;
+        let activityTimer = null;
+
+        function setButtonsDisabled(disabled) {
+            document.getElementById("fodderButton").disabled = disabled;
+
+            document.querySelectorAll(".farm-action").forEach(function(button) {
+                button.disabled = disabled;
+            });
+        }
+
+        function startActivity() {
+            if (activityRunning) {
+                return false;
+            }
+
+            activityRunning = true;
+            setButtonsDisabled(true);
+
+            return true;
+        }
+
+        function showMessage(message) {
+            const box = document.getElementById("activityMessage");
+            box.innerText = message;
+            box.style.display = "block";
+        }
+
+        function hideEffects() {
+            document.getElementById("activityMessage").style.display = "none";
+
+            document.getElementById("waterEffect").style.display = "none";
+            document.getElementById("waterEffect").className = "";
+
+            document.getElementById("soapEffect").style.display = "none";
+            document.getElementById("soapEffect").className = "";
+
+            document.getElementById("injectionAnimation").style.display = "none";
+            document.getElementById("injectionAnimation").className = "";
+
+            document.getElementById("brushAnimation").style.display = "none";
+            document.getElementById("brushAnimation").className = "";
+        }
+
+        function finishActivity() {
+            clearTimeout(activityTimer);
+
+            const cow = document.getElementById("cowImage");
+            const bucket = document.getElementById("waterBucket");
+            const drinkingSound = document.getElementById("drinkingSound");
+
+            cow.src = cow.dataset.standing;
+
+            bucket.classList.remove("moving");
+
+            drinkingSound.pause();
+            drinkingSound.currentTime = 0;
+
+            document.getElementById("eatingStatus").style.display = "none";
+
+            hideEffects();
+
+            activityRunning = false;
+            setButtonsDisabled(false);
+
+            document.getElementById("bathSound").pause();
+document.getElementById("bathSound").currentTime = 0;
+
+document.getElementById("brushingSound").pause();
+document.getElementById("brushingSound").currentTime = 0;
+        }
+
+        function playCowSound() {
+            const sound = document.getElementById("cowSound");
+            sound.currentTime = 0;
+
+            sound.play().catch(function(error) {
+                console.log("Cow sound could not play:", error);
+            });
+        }
+
+
+        // 1. FEED THE COW
+        function feedCow() {
+            if (!startActivity()) return;
+
+            const cow = document.getElementById("cowImage");
+
+            showMessage("🌿 Yummy! The cow is eating!");
+
+            cow.src = cow.dataset.eating;
+
+            document.getElementById("eatingStatus").style.display = "block";
+
+            activityTimer = setTimeout(function() {
+
+                cow.src = cow.dataset.standing;
+
+                document.getElementById("eatingStatus").style.display = "none";
+
+                showMessage("🐮 Moooo! Thank you for the food!");
+
+                playCowSound();
+
+                activityTimer = setTimeout(finishActivity, 1800);
+
+            }, 3500);
+        }
+
+
+        // 2. DRINK WATER
+        function giveWater() {
+            if (!startActivity()) return;
+
+            const cow = document.getElementById("cowImage");
+            const bucket = document.getElementById("waterBucket");
+            const sound = document.getElementById("drinkingSound");
+            const water = document.getElementById("waterEffect");
+
+            // Use a separate drinking pose
+            cow.src = cow.dataset.drinking;
+
+            // Move the bucket
+            bucket.classList.add("moving");
+
+            showMessage("💧 The cow is drinking water!");
+
+            water.style.display = "block";
+            water.className = "water-animation";
+
+            // Play the real drinking sound during the activity
+            sound.currentTime = 0;
+
+            sound.play().catch(function(error) {
+                console.log("Drinking sound could not play:", error);
+            });
+
+            activityTimer = setTimeout(function() {
+
+                sound.pause();
+                sound.currentTime = 0;
+
+                cow.src = cow.dataset.standing;
+
+                showMessage("🐮 The cow enjoyed her water!");
+
+                activityTimer = setTimeout(finishActivity, 1500);
+
+            }, 4000);
+        }
+
+             
+
+// BATH ACTIVITY
+function giveBath() {
+    if (!startActivity()) return;
+
+    const cow = document.getElementById("cowImage");
+    const sound = document.getElementById("bathSound");
+
+    cow.src = cow.dataset.bath;
+
+    showMessage("🚿 Bath time! Splash, splash!");
+
+    sound.currentTime = 0;
+    sound.play().catch(error => console.log(error));
+
+    activityTimer = setTimeout(function() {
+        showMessage("🫧 Our cow is fresh and clean!");
+    }, 2500);
+
+    activityTimer = setTimeout(finishActivity, 4500);
+}
+
+// MEDICINE / INJECTION ACTIVITY
+function giveMedicine() {
+
+    if (!startActivity()) return;
+
+    const cow = document.getElementById("cowImage");
+
+    showMessage("💉 The vet is helping our cow!");
+
+    // Show the injection image
+    cow.src = cow.dataset.medicine;
+
+    activityTimer = setTimeout(function() {
+
+        showMessage("🐮 Moooo! Thank you for taking care of me!");
+
+        playCowSound();
+
+    }, 1800);
+
+    activityTimer = setTimeout(function() {
+        finishActivity();
+    }, 4000);
+}
+
+
+// BRUSH ACTIVITY
+function brushCow() {
+    if (!startActivity()) return;
+
+    const cow = document.getElementById("cowImage");
+    const sound = document.getElementById("brushingSound");
+
+    cow.src = cow.dataset.brush;
+
+    showMessage("🪮 Let's brush our lovely cow!");
+
+    sound.currentTime = 0;
+    sound.play().catch(error => console.log(error));
+
+    activityTimer = setTimeout(function() {
+        showMessage("🫧 Look at the lovely soap foam!");
+    }, 2500);
+
+    activityTimer = setTimeout(finishActivity, 4500);
+}
+
+      
+
+
+     
+
+       
+
+    </script>
+
+</body>
+</html>

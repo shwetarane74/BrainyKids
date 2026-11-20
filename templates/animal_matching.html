@@ -1,0 +1,496 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BrainyKids - Animal Matching</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #FFF8E7;
+            text-align: center;
+        }
+
+        header {
+            background-color: #FFCB77;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #754C24;
+            margin: 0;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #754C24;
+            font-size: 18px;
+        }
+
+        .game-container {
+            max-width: 1100px;
+            margin: 25px auto;
+            padding: 15px;
+        }
+
+        .instruction {
+            font-size: 24px;
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        .level-selection {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #754C24;
+        }
+
+        .level-selection select {
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 10px;
+            border: 2px solid #FFD166;
+            background-color: white;
+            cursor: pointer;
+        }
+
+        .score {
+            font-size: 20px;
+            color: #E07820;
+            margin-bottom: 20px;
+        }
+
+        .animal-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .animal-card {
+            
+             background-color: white;
+             border: 3px solid #FFD166;
+             border-radius: 18px;
+             padding: 0;
+             aspect-ratio: 3 / 2;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             cursor: pointer;
+             overflow: hidden;
+
+        }
+
+        .animal-card:hover {
+            background-color: #FFF0C2;
+            transform: scale(1.03);
+        }
+
+        .animal-card.selected {
+            border-color: #2196F3;
+            background-color: #D9F0FF;
+        }
+
+        .animal-card.matched {
+            background-color: #D9F7D9;
+            border-color: #4CAF50;
+            cursor: default;
+            opacity: 0.85;
+        }
+
+        .animal-picture {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 14px;
+    pointer-events: none;
+}
+
+        .message {
+            font-size: 22px;
+            min-height: 35px;
+            margin: 20px;
+            color: #388E3C;
+        }
+
+        button {
+            background-color: #FF9F1C;
+            border: none;
+            border-radius: 25px;
+            padding: 15px 30px;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #F08000;
+        }
+
+        @media (max-width: 600px) {
+
+            .animal-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+
+        
+
+            h1 {
+                font-size: 26px;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🐾 BrainyKids 🐾</h1>
+
+        <p class="subtitle">
+            Let's Match the Animals!
+        </p>
+    </header>
+
+    <div class="game-container">
+
+        <div class="instruction">
+            Find the matching animals!
+        </div>
+
+        <div class="level-selection">
+
+            <label for="level">Choose Level:</label>
+
+            <select id="level" onchange="changeLevel()">
+                <option value="5">Level 1 - Easy</option>
+                <option value="7">Level 2 - Medium</option>
+                <option value="10">Level 3 - Challenge</option>
+            </select>
+
+        </div>
+
+        <div class="score">
+            ⭐ Stars: <span id="stars">0</span>
+        </div>
+
+        <div class="animal-grid" id="animalGrid">
+        </div>
+
+        <div class="message" id="message">
+            Tap an animal and find its friend!
+        </div>
+
+        <button onclick="newGame()">
+            🔄 Play Again
+        </button>
+
+    </div>
+
+    <script>
+
+        // All 10 animals
+        const animals = [
+            { name: "lion", picture: "/static/images/lion.jpg" },
+            { name: "cat", picture: "/static/images/cat.jpg" },
+            { name: "dog", picture: "/static/images/dog.jpg" },
+            { name: "cow", picture: "/static/images/cow.jpg" },
+            { name: "rabbit", picture: "/static/images/rabbit.jpg" },
+            { name: "tiger", picture: "/static/images/tiger.jpg" },
+            { name: "deer", picture: "/static/images/deer.jpg" },
+            { name: "zebra", picture: "/static/images/zebra.jpg" },
+            { name: "giraffe", picture: "/static/images/giraffe.jpg" },
+            { name: "panda", picture: "/static/images/panda.jpg" }
+        ];
+
+        let firstCard = null;
+        let secondCard = null;
+
+        let stars = 0;
+        let matchedPairs = 0;
+        let locked = false;
+
+        // Audio connection
+        let soundContext = null;
+
+        function getSoundContext() {
+
+            if (!soundContext) {
+
+                const AudioContextClass =
+                    window.AudioContext || window.webkitAudioContext;
+
+                if (!AudioContextClass) {
+                    return null;
+                }
+
+                soundContext = new AudioContextClass();
+            }
+
+            return soundContext;
+        }
+
+        // Play a sound
+        function playTone(frequency, duration) {
+
+            const audio = getSoundContext();
+
+            if (!audio) {
+                return;
+            }
+
+            if (audio.state === "suspended") {
+                audio.resume();
+            }
+
+            const oscillator = audio.createOscillator();
+            const gain = audio.createGain();
+
+            oscillator.connect(gain);
+            gain.connect(audio.destination);
+
+            oscillator.type = "sine";
+
+            oscillator.frequency.setValueAtTime(
+                frequency,
+                audio.currentTime
+            );
+
+            gain.gain.setValueAtTime(0.2, audio.currentTime);
+
+            gain.gain.exponentialRampToValueAtTime(
+                0.01,
+                audio.currentTime + duration
+            );
+
+            oscillator.start();
+            oscillator.stop(audio.currentTime + duration);
+        }
+
+        // Happy sound for correct match
+        function playSuccessSound() {
+
+            playTone(523, 0.25);
+
+            setTimeout(function() {
+                playTone(659, 0.25);
+            }, 150);
+
+            setTimeout(function() {
+                playTone(784, 0.35);
+            }, 300);
+        }
+
+        // Gentle sound for incorrect match
+        function playFailureSound() {
+
+            playTone(300, 0.35);
+        }
+
+        // Shuffle animals randomly
+        function shuffleAnimals(cards) {
+
+            for (let i = cards.length - 1; i > 0; i--) {
+
+                let j = Math.floor(Math.random() * (i + 1));
+
+                [cards[i], cards[j]] = [cards[j], cards[i]];
+
+            }
+
+            return cards;
+        }
+
+        // Create the game
+        function createGame() {
+
+            const grid = document.getElementById("animalGrid");
+
+            grid.innerHTML = "";
+
+            firstCard = null;
+            secondCard = null;
+
+            stars = 0;
+            matchedPairs = 0;
+            locked = false;
+
+            document.getElementById("stars").textContent = stars;
+
+            document.getElementById("message").textContent =
+                "Tap an animal and find its friend!";
+
+            // Get selected difficulty
+            const numberOfPairs = Number(
+                document.getElementById("level").value
+            );
+
+            // Select animals randomly
+            let selectedAnimals = shuffleAnimals([...animals])
+                .slice(0, numberOfPairs);
+
+            // Create two copies of every selected animal
+            let gameAnimals = [
+                ...selectedAnimals,
+                ...selectedAnimals
+            ];
+
+            // Shuffle the cards
+            shuffleAnimals(gameAnimals);
+
+            // Display animal cards
+            gameAnimals.forEach(animal => {
+
+                const card = document.createElement("div");
+
+                card.className = "animal-card";
+
+                card.dataset.animal = animal.name;
+
+                const picture = document.createElement("img");
+
+                picture.src = animal.picture;
+                picture.alt = animal.name;
+                picture.className = "animal-picture";
+                picture.draggable = false;
+
+                card.appendChild(picture);
+
+                card.addEventListener("click", function() {
+
+                    selectCard(this);
+
+                });
+
+                grid.appendChild(card);
+
+            });
+
+        }
+
+        // Handle card selection
+        function selectCard(card) {
+
+            // Prevent selecting more than two cards
+            if (
+                locked ||
+                card.classList.contains("matched") ||
+                card === firstCard
+            ) {
+                return;
+            }
+
+            card.classList.add("selected");
+
+            if (firstCard === null) {
+
+                firstCard = card;
+
+            } else {
+
+                secondCard = card;
+
+                locked = true;
+
+                checkMatch();
+
+            }
+
+        }
+
+        // Check whether two animals match
+        function checkMatch() {
+
+            if (
+                firstCard.dataset.animal ===
+                secondCard.dataset.animal
+            ) {
+
+                // Correct match
+                playSuccessSound();
+
+                firstCard.classList.add("matched");
+                secondCard.classList.add("matched");
+
+                firstCard.classList.remove("selected");
+                secondCard.classList.remove("selected");
+
+                stars++;
+                matchedPairs++;
+
+                document.getElementById("stars").textContent = stars;
+
+                firstCard = null;
+                secondCard = null;
+
+                locked = false;
+
+                document.getElementById("message").textContent =
+                    "🎉 Great job! You found a match!";
+
+                const numberOfPairs = Number(
+                    document.getElementById("level").value
+                );
+
+                // Check whether the level is complete
+                if (matchedPairs === numberOfPairs) {
+
+                    document.getElementById("message").textContent =
+                        "🏆 Amazing! You matched all the animals!";
+
+                }
+
+            } else {
+
+                // Incorrect match
+                playFailureSound();
+
+                document.getElementById("message").textContent =
+                    "😊 Try again! Find the same animals.";
+
+                setTimeout(function() {
+
+                    firstCard.classList.remove("selected");
+                    secondCard.classList.remove("selected");
+
+                    firstCard = null;
+                    secondCard = null;
+
+                    locked = false;
+
+                }, 1000);
+
+            }
+
+        }
+
+        // Change difficulty level
+        function changeLevel() {
+
+            createGame();
+
+        }
+
+        // Start a new game
+        function newGame() {
+
+            createGame();
+
+        }
+
+        // Start the first game automatically
+        createGame();
+
+    </script>
+
+</body>
+</html>

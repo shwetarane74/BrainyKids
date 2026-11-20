@@ -1,0 +1,576 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shape Matching - BrainyKids</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f4f7ff;
+            text-align: center;
+        }
+
+        h1 {
+            color: #3949ab;
+            margin-bottom: 8px;
+        }
+
+        .instruction {
+            color: #555;
+            font-size: 18px;
+        }
+
+        .score {
+            font-size: 21px;
+            font-weight: bold;
+            color: #333;
+            margin: 20px;
+        }
+
+        .game-board {
+            max-width: 850px;
+            margin: 20px auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        .game-section {
+            background: white;
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 3px 12px #00000012;
+        }
+
+        .game-section h2 {
+            color: #3949ab;
+            font-size: 20px;
+        }
+
+        .shape-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            justify-items: center;
+        }
+
+        .shape-item {
+            width: 115px;
+            height: 115px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            border-radius: 12px;
+        }
+
+        .shape-item:active {
+            cursor: grabbing;
+        }
+
+        .shape-item svg,
+        .drop-zone svg {
+            width: 85px;
+            height: 85px;
+            pointer-events: none;
+        }
+
+        .shape-item.matched {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .drop-zone {
+            width: 115px;
+            height: 115px;
+            border: 3px dashed #c5cae9;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .drop-zone.over {
+            background: #e8eaf6;
+            border-color: #3949ab;
+        }
+
+        .drop-zone.correct {
+            border: 3px solid #66bb6a;
+            background: #e8f5e9;
+        }
+
+        .drop-zone svg {
+            width: 85px;
+            height: 85px;
+        }
+
+        .drop-zone .filled-shape {
+            position: absolute;
+            width: 85px;
+            height: 85px;
+        }
+
+        .dragging {
+            opacity: 0.65;
+        }
+
+        .message {
+            min-height: 32px;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 15px;
+            color: #3949ab;
+        }
+
+        button {
+            border: none;
+            padding: 13px 25px;
+            margin: 8px;
+            border-radius: 25px;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .restart {
+            background: #3949ab;
+            color: white;
+        }
+
+        .home {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .game-board {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .shape-item,
+            .drop-zone {
+                width: 100px;
+                height: 100px;
+            }
+
+            .shape-item svg,
+            .drop-zone svg,
+            .drop-zone .filled-shape {
+                width: 75px;
+                height: 75px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>⭐ Shape Matching ⭐</h1>
+
+    <p class="instruction">
+        Drag each coloured shape into its matching outline!
+    </p>
+
+    <div class="score">
+        Stars: <span id="stars">0</span> ⭐ / 6
+    </div>
+
+    <div class="game-board">
+
+        <div class="game-section">
+            <h2>Drag the Shapes</h2>
+            <div class="shape-list" id="shapeList"></div>
+        </div>
+
+        <div class="game-section">
+            <h2>Match the Shapes</h2>
+            <div class="shape-list" id="targetList"></div>
+        </div>
+
+    </div>
+
+    <div class="message" id="message">
+        Let's match all six shapes!
+    </div>
+
+    <button class="restart" onclick="newGame()">
+        Play Again 🔄
+    </button>
+
+    <button class="home" onclick="goHome()">
+        Home 🏠
+    </button>
+
+
+    <script>
+
+        const shapes = [
+            {
+                name: "circle",
+                color: "#EF5350",
+                svg: '<circle cx="50" cy="50" r="38" fill="#EF5350"/>',
+                outline: '<circle cx="50" cy="50" r="38" fill="none" stroke="#EF5350" stroke-width="5"/>'
+            },
+            {
+                name: "square",
+                color: "#42A5F5",
+                svg: '<rect x="12" y="12" width="76" height="76" fill="#42A5F5"/>',
+                outline: '<rect x="12" y="12" width="76" height="76" fill="none" stroke="#42A5F5" stroke-width="5"/>'
+            },
+            {
+                name: "triangle",
+                color: "#FFA726",
+                svg: '<path d="M50 8 L94 88 L6 88 Z" fill="#FFA726"/>',
+                outline: '<path d="M50 8 L94 88 L6 88 Z" fill="none" stroke="#FFA726" stroke-width="5" stroke-linejoin="round"/>'
+            },
+            {
+                name: "rectangle",
+                color: "#66BB6A",
+                svg: '<rect x="5" y="25" width="90" height="50" fill="#66BB6A"/>',
+                outline: '<rect x="5" y="25" width="90" height="50" fill="none" stroke="#66BB6A" stroke-width="5"/>'
+            },
+            {
+                name: "star",
+                color: "#AB47BC",
+                svg: '<path d="M50 5 L62 36 L95 38 L69 59 L78 92 L50 72 L22 92 L31 59 L5 38 L38 36 Z" fill="#AB47BC"/>',
+                outline: '<path d="M50 5 L62 36 L95 38 L69 59 L78 92 L50 72 L22 92 L31 59 L5 38 L38 36 Z" fill="none" stroke="#AB47BC" stroke-width="5" stroke-linejoin="round"/>'
+            },
+            {
+                name: "oval",
+                color: "#FFCA28",
+                svg: '<ellipse cx="50" cy="50" rx="44" ry="30" fill="#FFCA28"/>',
+                outline: '<ellipse cx="50" cy="50" rx="44" ry="30" fill="none" stroke="#FFCA28" stroke-width="5"/>'
+            }
+        ];
+
+        let stars = 0;
+        let draggedShape = null;
+        let audioContext = null;
+
+        const shapeList = document.getElementById("shapeList");
+        const targetList = document.getElementById("targetList");
+        const message = document.getElementById("message");
+
+        function shuffle(array) {
+            const copy = [...array];
+
+            for (let i = copy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+
+            return copy;
+        }
+
+        function playTone(frequency, duration) {
+            try {
+                audioContext ??= new (
+                    window.AudioContext || window.webkitAudioContext
+                )();
+
+                if (audioContext.state === "suspended") {
+                    audioContext.resume();
+                }
+
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                oscillator.connect(gain);
+                gain.connect(audioContext.destination);
+
+                oscillator.frequency.value = frequency;
+                oscillator.type = "sine";
+
+                gain.gain.setValueAtTime(
+                    0.15,
+                    audioContext.currentTime
+                );
+
+                gain.gain.exponentialRampToValueAtTime(
+                    0.001,
+                    audioContext.currentTime + duration
+                );
+
+                oscillator.start();
+                oscillator.stop(
+                    audioContext.currentTime + duration
+                );
+
+            } catch (error) {
+                console.log("Sound could not play:", error);
+            }
+        }
+
+        function playSuccessSound() {
+            playTone(523, 0.15);
+            setTimeout(() => playTone(659, 0.15), 130);
+            setTimeout(() => playTone(784, 0.25), 260);
+        }
+
+        function playWrongSound() {
+            playTone(220, 0.25);
+        }
+        
+        function speakShapeName(shapeName) {
+        window.speechSynthesis.cancel();
+
+        const speech = new SpeechSynthesisUtterance(shapeName);
+
+        speech.lang = "en-US";
+        speech.rate = 0.75;
+        speech.pitch = 1.2;
+        speech.volume = 1;
+
+        window.speechSynthesis.speak(speech);
+        }
+
+        function createShapeSVG(content, className = "") {
+            return `
+                <svg class="${className}"
+                     viewBox="0 0 100 100"
+                     xmlns="http://www.w3.org/2000/svg">
+                    ${content}
+                </svg>
+            `;
+        }
+
+        function createGame() {
+            stars = 0;
+            draggedShape = null;
+
+            document.getElementById("stars").textContent = stars;
+
+            message.textContent = "Let's match all six shapes!";
+
+            shapeList.innerHTML = "";
+            targetList.innerHTML = "";
+
+            const shuffledShapes = shuffle(shapes);
+
+            shuffledShapes.forEach(shape => {
+                const item = document.createElement("div");
+
+                item.className = "shape-item";
+                item.dataset.shape = shape.name;
+                item.innerHTML = createShapeSVG(shape.svg);
+
+                item.addEventListener("pointerdown", startDrag);
+
+                shapeList.appendChild(item);
+            });
+
+            shuffle(shapes).forEach(shape => {
+                const target = document.createElement("div");
+
+                target.className = "drop-zone";
+                target.dataset.shape = shape.name;
+
+                target.innerHTML = createShapeSVG(shape.outline);
+
+                targetList.appendChild(target);
+            });
+        }
+
+        function startDrag(event) {
+            if (event.button !== 0 && event.pointerType === "mouse") {
+                return;
+            }
+
+            if (event.currentTarget.classList.contains("matched")) {
+                return;
+            }
+
+            event.preventDefault();
+
+            draggedShape = event.currentTarget;
+
+            const rect = draggedShape.getBoundingClientRect();
+
+            const clone = draggedShape.cloneNode(true);
+
+            clone.removeAttribute("id");
+            clone.classList.add("dragging");
+
+            clone.style.position = "fixed";
+            clone.style.left = rect.left + "px";
+            clone.style.top = rect.top + "px";
+            clone.style.width = rect.width + "px";
+            clone.style.height = rect.height + "px";
+            clone.style.margin = "0";
+            clone.style.zIndex = "1000";
+            clone.style.pointerEvents = "none";
+
+            document.body.appendChild(clone);
+
+            draggedShape.classList.add("matched");
+            draggedShape.style.visibility = "visible";
+
+            draggedShape._dragClone = clone;
+            draggedShape._pointerId = event.pointerId;
+            draggedShape._startX = event.clientX;
+            draggedShape._startY = event.clientY;
+            draggedShape._left = rect.left;
+            draggedShape._top = rect.top;
+
+            document.addEventListener("pointermove", moveDrag);
+            document.addEventListener("pointerup", endDrag);
+            document.addEventListener("pointercancel", cancelDrag);
+        }
+
+        function moveDrag(event) {
+            if (!draggedShape || event.pointerId !== draggedShape._pointerId) {
+                return;
+            }
+
+            const dx = event.clientX - draggedShape._startX;
+            const dy = event.clientY - draggedShape._startY;
+
+            const clone = draggedShape._dragClone;
+
+            clone.style.left = (draggedShape._left + dx) + "px";
+            clone.style.top = (draggedShape._top + dy) + "px";
+
+            document.querySelectorAll(".drop-zone").forEach(target => {
+                const rect = target.getBoundingClientRect();
+
+                const inside =
+                    event.clientX >= rect.left &&
+                    event.clientX <= rect.right &&
+                    event.clientY >= rect.top &&
+                    event.clientY <= rect.bottom;
+
+                target.classList.toggle("over", inside);
+            });
+        }
+
+        function endDrag(event) {
+            if (!draggedShape || event.pointerId !== draggedShape._pointerId) {
+                return;
+            }
+
+            const clone = draggedShape._dragClone;
+
+            if (clone) {
+                clone.remove();
+            }
+
+            const target = document.elementFromPoint(
+                event.clientX,
+                event.clientY
+            )?.closest(".drop-zone");
+
+            document.querySelectorAll(".drop-zone").forEach(zone => {
+                zone.classList.remove("over");
+            });
+
+            if (
+                target &&
+                target.dataset.shape === draggedShape.dataset.shape &&
+                !target.classList.contains("correct")
+            ) {
+                const shape = shapes.find(
+                    item => item.name === draggedShape.dataset.shape
+                );
+
+                target.classList.add("correct");
+                target.innerHTML += createShapeSVG(
+                    shape.svg,
+                    "filled-shape"
+                );
+
+                draggedShape.remove();
+
+                stars++;
+                document.getElementById("stars").textContent = stars;
+
+                message.textContent = "Great job! ⭐";
+                speakShapeName(shape.name);
+                playSuccessSound();
+
+                if (stars === shapes.length) {
+                message.textContent = "Amazing! You matched all six shapes! 🎉";
+
+                setTimeout(() => {
+                const speech = new SpeechSynthesisUtterance(
+               "Amazing! You matched all six shapes!"
+                );
+
+                speech.lang = "en-US";
+                speech.rate = 0.8;
+
+                 window.speechSynthesis.speak(speech);
+                 }, 1000);
+            }
+
+            } else {
+                draggedShape.classList.remove("matched");
+                draggedShape.style.visibility = "visible";
+
+                message.textContent = target
+                    ? "Try another shape! 😊"
+                    : "Keep trying! You can do it!";
+
+                playWrongSound();
+            }
+
+            draggedShape = null;
+
+            removeDragListeners();
+        }
+
+        function cancelDrag(event) {
+            if (!draggedShape || event.pointerId !== draggedShape._pointerId) {
+                return;
+            }
+
+            if (draggedShape._dragClone) {
+                draggedShape._dragClone.remove();
+            }
+
+            draggedShape.classList.remove("matched");
+            draggedShape.style.visibility = "visible";
+
+            draggedShape = null;
+
+            removeDragListeners();
+        }
+
+        function removeDragListeners() {
+            document.removeEventListener("pointermove", moveDrag);
+            document.removeEventListener("pointerup", endDrag);
+            document.removeEventListener("pointercancel", cancelDrag);
+        }
+
+        function newGame() {
+            createGame();
+        }
+
+        function goHome() {
+            window.location.href = "{{ url_for('home') }}";
+        }
+
+        createGame();
+
+    </script>
+
+</body>
+</html>

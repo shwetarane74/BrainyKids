@@ -1,0 +1,542 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Jigsaw Picture Puzzle</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #fff8e8;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #8b5a2b;
+        }
+
+        .game-container {
+            max-width: 700px;
+            margin: auto;
+        }
+
+        .puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(2, 150px);
+            grid-template-rows: repeat(2, 150px);
+            gap: 5px;
+            justify-content: center;
+            margin: 25px auto;
+            background: #d8c4a8;
+            padding: 5px;
+            width: fit-content;
+            border-radius: 10px;
+        }
+
+        .puzzle-slot {
+            width: 150px;
+            height: 150px;
+            background: #fff;
+            border: 2px dashed #b18a5a;
+            box-sizing: border-box;
+        }
+
+        .puzzle-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .pieces {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 25px auto;
+        }
+
+        .piece {
+            width: 120px;
+            height: 120px;
+            border: 3px solid #e5ad55;
+            border-radius: 8px;
+            cursor: grab;
+            touch-action: none;
+            background-repeat: no-repeat;
+            background-size: 200% 200%;
+        }
+
+        .piece:active {
+            cursor: grabbing;
+        }
+
+        .message {
+            font-size: 24px;
+            color: #27833c;
+            font-weight: bold;
+            margin: 20px;
+        }
+
+        button {
+            background: #f4a742;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        button:hover {
+            background: #ed9630;
+        }
+
+        .animal-button {
+            background: #e5f3ff;
+            border: 2px solid #9bc8ed;
+        }
+
+        .animal-button:hover {
+            background: #cce7ff;
+        }
+
+        .animal-button.selected {
+            background: #bce8c5;
+            border-color: #4caf50;
+        }
+
+        @media (max-width: 450px) {
+            .puzzle-board {
+                grid-template-columns: repeat(2, 125px);
+                grid-template-rows: repeat(2, 125px);
+            }
+
+            .puzzle-slot {
+                width: 125px;
+                height: 125px;
+            }
+
+            .piece {
+                width: 105px;
+                height: 105px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="game-container">
+
+        <h1>🧩 Jigsaw Picture Puzzle</h1>
+
+        <h3>Put all 4 pieces in the correct places!</h3>
+
+        <h3>Choose your animal 🐾</h3>
+
+        <div id="animalSelection">
+
+            <button class="animal-button"
+                    onclick="selectAnimal('Lion', this)">
+                🦁 Lion
+            </button>
+
+            <button class="animal-button"
+                    onclick="selectAnimal('Monkey', this)">
+                🐒 Monkey
+            </button>
+
+            <button class="animal-button"
+                    onclick="selectAnimal('Elephant', this)">
+                🐘 Elephant
+            </button>
+
+            <button class="animal-button"
+                    onclick="selectAnimal('Zebra', this)">
+                🦓 Zebra
+            </button>
+
+        </div>
+
+        <div class="puzzle-board" id="puzzleBoard">
+
+            <div class="puzzle-slot" data-position="0"></div>
+            <div class="puzzle-slot" data-position="1"></div>
+            <div class="puzzle-slot" data-position="2"></div>
+            <div class="puzzle-slot" data-position="3"></div>
+
+        </div>
+
+        <h3>Drag the pieces into the puzzle 🧩</h3>
+
+        <div class="pieces" id="pieces"></div>
+
+        <div class="message" id="message"></div>
+
+        <button onclick="startGame()">Play Again 🔄</button>
+
+        <button onclick="window.location.href='/'">
+            Home 🏠
+        </button>
+
+    </div>
+
+
+    <script>
+
+        // Animal images
+
+        let imageUrl = "";
+
+        const animalImages = {
+
+            Lion: "{{ url_for('static', filename='images/car_lion.png') }}",
+
+            Monkey: "{{ url_for('static', filename='images/car_monkey.png') }}",
+
+            Elephant: "{{ url_for('static', filename='images/car_elephant.png') }}",
+
+            Zebra: "{{ url_for('static', filename='images/car_zebra.png') }}"
+
+        };
+
+
+        // Puzzle positions
+
+        const positions = [
+            "0% 0%",
+            "100% 0%",
+            "0% 100%",
+            "100% 100%"
+        ];
+
+
+        let draggedPiece = null;
+
+        let completed = 0;
+
+        let selectedAnimal = "";
+
+        let gameFinished = false;
+
+
+        // Audio setup
+
+        let audioContext = null;
+
+        function getAudioContext() {
+
+            if (!audioContext) {
+
+                audioContext = new (
+                    window.AudioContext ||
+                    window.webkitAudioContext
+                )();
+
+            }
+
+            if (audioContext.state === "suspended") {
+                audioContext.resume();
+            }
+
+            return audioContext;
+
+        }
+
+
+        // Play sound using different frequencies
+
+        function playSound(frequencies, duration = 150) {
+
+            const audio = getAudioContext();
+
+            frequencies.forEach((frequency, index) => {
+
+                const oscillator = audio.createOscillator();
+
+                const gain = audio.createGain();
+
+                oscillator.connect(gain);
+
+                gain.connect(audio.destination);
+
+                oscillator.frequency.value = frequency;
+
+                oscillator.type = "sine";
+
+                const startTime =
+                    audio.currentTime + index * duration / 1000;
+
+                gain.gain.setValueAtTime(0.2, startTime);
+
+                gain.gain.exponentialRampToValueAtTime(
+                    0.001,
+                    startTime + duration / 1000
+                );
+
+                oscillator.start(startTime);
+
+                oscillator.stop(startTime + duration / 1000);
+
+            });
+
+        }
+
+
+        // Correct answer sound
+
+        function playCorrectSound() {
+
+            playSound([523, 659], 150);
+
+        }
+
+
+        // Wrong answer sound
+
+        function playWrongSound() {
+
+            playSound([180], 300);
+
+        }
+
+
+        // Puzzle completion sound
+
+        function playCompleteSound() {
+
+            playSound([523, 659, 784, 1047], 250);
+
+        }
+
+
+        // Select animal
+
+        function selectAnimal(animal, button) {
+
+            selectedAnimal = animal;
+
+            imageUrl = animalImages[animal];
+
+            document.querySelectorAll(".animal-button").forEach(btn => {
+                btn.classList.remove("selected");
+            });
+
+            button.classList.add("selected");
+
+            startGame();
+
+        }
+
+
+        // Start or restart puzzle
+
+        function startGame() {
+
+            if (!imageUrl) {
+
+                document.getElementById("message").textContent =
+                    "Please choose an animal first! 🐾";
+
+                return;
+
+            }
+
+            completed = 0;
+
+            draggedPiece = null;
+
+            gameFinished = false;
+
+            document.getElementById("message").textContent = "";
+
+            // Clear puzzle board
+
+            const board = document.getElementById("puzzleBoard");
+
+            board.innerHTML = "";
+
+            for (let i = 0; i < 4; i++) {
+
+                const slot = document.createElement("div");
+
+                slot.className = "puzzle-slot";
+
+                slot.dataset.position = i;
+
+                board.appendChild(slot);
+
+            }
+
+
+            // Clear old pieces
+
+            const piecesContainer =
+                document.getElementById("pieces");
+
+            piecesContainer.innerHTML = "";
+
+
+            // Shuffle puzzle pieces
+
+            const shuffled = [0, 1, 2, 3].sort(
+                () => Math.random() - 0.5
+            );
+
+
+            // Create puzzle pieces
+
+            shuffled.forEach(position => {
+
+                const piece = document.createElement("div");
+
+                piece.className = "piece";
+
+                piece.dataset.position = position;
+
+                piece.style.backgroundImage =
+                    `url("${imageUrl}")`;
+
+                piece.style.backgroundPosition =
+                    positions[position];
+
+                piece.draggable = true;
+
+
+                // When dragging starts
+
+                piece.addEventListener("dragstart", function() {
+
+                    if (gameFinished) {
+                        return;
+                    }
+
+                    draggedPiece = piece;
+
+                });
+
+
+                // When dragging ends
+
+                piece.addEventListener("dragend", function() {
+
+                    draggedPiece = null;
+
+                });
+
+
+                piecesContainer.appendChild(piece);
+
+            });
+
+
+            // Enable dropping pieces into puzzle slots
+
+            document.querySelectorAll(".puzzle-slot").forEach(slot => {
+
+                slot.addEventListener("dragover", function(event) {
+
+                    event.preventDefault();
+
+                });
+
+
+                slot.addEventListener("drop", function(event) {
+
+                    event.preventDefault();
+
+                    if (
+                        !draggedPiece ||
+                        slot.children.length > 0 ||
+                        gameFinished
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    // Check whether the piece is correct
+
+                    if (
+                        draggedPiece.dataset.position ===
+                        slot.dataset.position
+                    ) {
+
+                        // Play correct sound
+
+                        playCorrectSound();
+
+
+                        // Create completed puzzle piece
+
+                        const imagePiece =
+                            document.createElement("div");
+
+                        imagePiece.style.width = "100%";
+
+                        imagePiece.style.height = "100%";
+
+                        imagePiece.style.backgroundImage =
+                            `url("${imageUrl}")`;
+
+                        imagePiece.style.backgroundSize =
+                            "200% 200%";
+
+                        imagePiece.style.backgroundPosition =
+                            positions[Number(slot.dataset.position)];
+
+                        imagePiece.style.backgroundRepeat = "no-repeat";
+
+
+                        // Put piece in correct position
+
+                        slot.appendChild(imagePiece);
+
+                        draggedPiece.remove();
+
+                        draggedPiece = null;
+
+                        completed++;
+
+
+                        // Check whether puzzle is completed
+
+                        if (completed === 4) {
+
+                            gameFinished = true;
+
+                            document.getElementById("message").textContent =
+                                "🎉 Wonderful! You completed the " +
+                                selectedAnimal +
+                                " puzzle! ⭐⭐⭐";
+
+                            // Play celebration sound
+
+                            playCompleteSound();
+
+                        }
+
+                    } else {
+
+                        // Play wrong answer sound
+
+                        playWrongSound();
+
+                    }
+
+                });
+
+            });
+
+        }
+
+    </script>
+
+</body>
+</html>

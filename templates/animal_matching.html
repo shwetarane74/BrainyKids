@@ -194,6 +194,10 @@
             🔄 Play Again
         </button>
 
+        <button onclick="goHome()" style="margin-left: 10px;">
+    🏠 Home
+</button>
+
     </div>
 
     <script>
@@ -479,6 +483,9 @@
             createGame();
 
         }
+        function goHome() {
+    window.location.href = "/";
+}
 
         // Start a new game
         function newGame() {

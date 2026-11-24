@@ -69,6 +69,8 @@
             touch-action: none;
             background-repeat: no-repeat;
             background-size: 200% 200%;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .piece:active {
@@ -217,9 +219,10 @@
 
 
         let draggedPiece = null;
+        let dragGhost = null;
+        let activePointerId = null;
 
         let completed = 0;
-
         let selectedAnimal = "";
 
         let gameFinished = false;
@@ -405,34 +408,17 @@
                 piece.style.backgroundPosition =
                     positions[position];
 
-                piece.draggable = true;
+                piece.draggable = false;
+ 
+                // Support both laptop mouse and mobile touch
 
-
-                // When dragging starts
-
-                piece.addEventListener("dragstart", function() {
-
-                    if (gameFinished) {
-                        return;
-                    }
-
-                    draggedPiece = piece;
-
-                });
-
-
-                // When dragging ends
-
-                piece.addEventListener("dragend", function() {
-
-                    draggedPiece = null;
-
-                });
-
+                piece.addEventListener("pointerdown", pointerDown);
 
                 piecesContainer.appendChild(piece);
 
-            });
+                });
+
+             
 
 
             // Enable dropping pieces into puzzle slots
@@ -535,7 +521,206 @@
             });
 
         }
+     // Start dragging
 
+function pointerDown(event) {
+
+    if (gameFinished || draggedPiece) {
+        return;
+    }
+
+    if (event.button !== undefined && event.button !== 0) {
+        return;
+    }
+
+    event.preventDefault();
+
+    // Unlock audio on user interaction
+
+    getAudioContext();
+
+    draggedPiece = event.currentTarget;
+
+    activePointerId = event.pointerId;
+
+    draggedPiece.style.opacity = "0.3";
+
+    // Create floating copy
+
+    dragGhost = draggedPiece.cloneNode(true);
+
+    const rect = draggedPiece.getBoundingClientRect();
+
+    dragGhost.style.position = "fixed";
+    dragGhost.style.width = rect.width + "px";
+    dragGhost.style.height = rect.height + "px";
+    dragGhost.style.zIndex = "9999";
+    dragGhost.style.pointerEvents = "none";
+    dragGhost.style.opacity = "0.9";
+
+    document.body.appendChild(dragGhost);
+
+    moveGhost(event.clientX, event.clientY);
+
+    document.addEventListener("pointermove", pointerMove);
+    document.addEventListener("pointerup", pointerUp);
+    document.addEventListener("pointercancel", pointerCancel);
+}
+
+
+// Move floating piece
+
+function moveGhost(x, y) {
+
+    if (!dragGhost) return;
+
+    dragGhost.style.left =
+        (x - dragGhost.offsetWidth / 2) + "px";
+
+    dragGhost.style.top =
+        (y - dragGhost.offsetHeight / 2) + "px";
+
+}
+
+
+// Drag movement
+
+function pointerMove(event) {
+
+    if (
+        !draggedPiece ||
+        event.pointerId !== activePointerId
+    ) {
+        return;
+    }
+
+    event.preventDefault();
+
+    moveGhost(event.clientX, event.clientY);
+
+}
+
+
+// Drop piece
+
+function pointerUp(event) {
+
+    if (
+        !draggedPiece ||
+        event.pointerId !== activePointerId
+    ) {
+        return;
+    }
+
+    event.preventDefault();
+
+    const piece = draggedPiece;
+
+    const element = document.elementFromPoint(
+        event.clientX,
+        event.clientY
+    );
+
+    const slot = element
+        ? element.closest(".puzzle-slot")
+        : null;
+
+    cleanUpDrag();
+
+    if (
+        !slot ||
+        slot.children.length > 0
+    ) {
+        return;
+    }
+
+    // Check correct position
+
+    if (
+        piece.dataset.position === slot.dataset.position
+    ) {
+
+        playCorrectSound();
+
+        const imagePiece = document.createElement("div");
+
+        imagePiece.style.width = "100%";
+        imagePiece.style.height = "100%";
+
+        imagePiece.style.backgroundImage =
+            `url("${imageUrl}")`;
+
+        imagePiece.style.backgroundSize = "200% 200%";
+
+        imagePiece.style.backgroundPosition =
+            positions[Number(slot.dataset.position)];
+
+        imagePiece.style.backgroundRepeat = "no-repeat";
+
+        slot.appendChild(imagePiece);
+
+        piece.remove();
+
+        completed++;
+
+        // Check completion
+
+        if (completed === 4) {
+
+            gameFinished = true;
+
+            document.getElementById("message").textContent =
+                "🎉 Wonderful! You completed the " +
+                selectedAnimal +
+                " puzzle! ⭐⭐⭐";
+
+            playCompleteSound();
+
+        }
+
+    } else {
+
+        playWrongSound();
+
+    }
+
+}
+
+
+// Cancel dragging
+
+function pointerCancel(event) {
+
+    if (event.pointerId !== activePointerId) {
+        return;
+    }
+
+    cleanUpDrag();
+
+}
+
+
+// Clean up floating piece
+
+function cleanUpDrag() {
+
+    document.removeEventListener("pointermove", pointerMove);
+    document.removeEventListener("pointerup", pointerUp);
+    document.removeEventListener("pointercancel", pointerCancel);
+
+    if (dragGhost) {
+        dragGhost.remove();
+        dragGhost = null;
+    }
+
+    if (draggedPiece) {
+        draggedPiece.style.opacity = "1";
+    }
+
+    draggedPiece = null;
+    activePointerId = null;
+
+}
     </script>
 
 </body>
